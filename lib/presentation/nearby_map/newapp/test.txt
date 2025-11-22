@@ -1,0 +1,1914 @@
+// import 'package:fdelux_source_neytrip/common/app_colors.dart';
+// import 'package:fdelux_source_neytrip/common/app_constants.dart';
+// import 'package:flutter/material.dart';
+// import 'package:flutter_map/flutter_map.dart';
+// import 'package:latlong2/latlong.dart';
+// import 'location_picker_page.dart';
+// import 'active_trip_page.dart';
+// import 'model/route_point.dart';
+// import 'model/trip.dart';
+
+// class TripPlanningPage extends StatefulWidget {
+//   const TripPlanningPage({super.key});
+
+//   @override
+//   State<TripPlanningPage> createState() => _TripPlanningPageState();
+// }
+
+// class _TripPlanningPageState extends State<TripPlanningPage> {
+//   final MapController _mapController = MapController();
+//   final TextEditingController _tripNameController = TextEditingController();
+
+//   // Dynamic route points
+//   List<RoutePoint> _routePoints = [];
+
+//   bool _isMapLoading = true;
+//   LatLng? _currentCenter;
+//   double _currentZoom = 12.0;
+//   String _selectedMapType = 'standard';
+//   String _selectedCategory = 'All';
+
+//   final List<Map<String, dynamic>> _categories = [
+//     {'icon': Icons.all_inclusive, 'label': 'All'},
+//     {'icon': Icons.coffee, 'label': 'Coffee'},
+//     {'icon': Icons.restaurant, 'label': 'Lunch'},
+//     {'icon': Icons.content_cut, 'label': 'Hair'},
+//     {'icon': Icons.spa, 'label': 'Nails'},
+//     {'icon': Icons.shopping_bag, 'label': 'Shopping'},
+//   ];
+
+//   // Saved trips
+//   List<Trip> _savedTrips = [];
+
+//   @override
+//   void initState() {
+//     super.initState();
+//     _initializeMap();
+//     _tripNameController.text =
+//         'My Trip ${DateTime.now().day}/${DateTime.now().month}';
+//   }
+
+//   void _initializeMap() async {
+//     await Future.delayed(const Duration(milliseconds: 500));
+//     setState(() {
+//       _currentCenter = LatLng(25.2048, 55.2708);
+//       _isMapLoading = false;
+//     });
+
+//     if (_currentCenter != null) {
+//       _mapController.move(_currentCenter!, _currentZoom);
+//     }
+//   }
+
+//   @override
+//   void dispose() {
+//     _tripNameController.dispose();
+//     _mapController.dispose();
+//     super.dispose();
+//   }
+
+//   // Pick location from map
+//   Future<void> _pickLocation(String pointType) async {
+//     final result = await Navigator.push(
+//       context,
+//       MaterialPageRoute(
+//         builder: (context) => LocationPickerPage(
+//           initialLocation: _currentCenter,
+//           title: 'Select $pointType',
+//         ),
+//       ),
+//     );
+
+//     if (result != null && result is Map<String, dynamic>) {
+//       final location = result['location'] as LatLng;
+//       final name = result['name'] as String;
+
+//       setState(() {
+//         _routePoints.add(
+//           RoutePoint(
+//             id: DateTime.now().millisecondsSinceEpoch.toString(),
+//             name: name,
+//             coordinates: location,
+//             category: _selectedCategory != 'All' ? _selectedCategory : null,
+//           ),
+//         );
+//       });
+
+//       _mapController.move(location, 13.0);
+//     }
+//   }
+
+//   void _removePoint(int index) {
+//     setState(() {
+//       _routePoints.removeAt(index);
+//     });
+
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(
+//         content: const Text('Point removed'),
+//         behavior: SnackBarBehavior.floating,
+//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+//       ),
+//     );
+//   }
+
+//   void _editPoint(int index) async {
+//     final point = _routePoints[index];
+//     final nameController = TextEditingController(text: point.name);
+//     final notesController = TextEditingController(text: point.notes ?? '');
+
+//     showDialog(
+//       context: context,
+//       builder: (context) => AlertDialog(
+//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+//         title: const Text('Edit Point'),
+//         content: Column(
+//           mainAxisSize: MainAxisSize.min,
+//           children: [
+//             TextField(
+//               controller: nameController,
+//               decoration: InputDecoration(
+//                 labelText: 'Name',
+//                 border: OutlineInputBorder(
+//                   borderRadius: BorderRadius.circular(12),
+//                 ),
+//               ),
+//             ),
+//             const SizedBox(height: 16),
+//             TextField(
+//               controller: notesController,
+//               decoration: InputDecoration(
+//                 labelText: 'Notes',
+//                 border: OutlineInputBorder(
+//                   borderRadius: BorderRadius.circular(12),
+//                 ),
+//               ),
+//               maxLines: 3,
+//             ),
+//           ],
+//         ),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(context),
+//             child: const Text('Cancel'),
+//           ),
+//           ElevatedButton(
+//             onPressed: () {
+//               setState(() {
+//                 _routePoints[index] = point.copyWith(
+//                   name: nameController.text,
+//                   notes: notesController.text,
+//                 );
+//               });
+//               Navigator.pop(context);
+//             },
+//             style: ElevatedButton.styleFrom(
+//               backgroundColor: Colors.teal,
+//               shape: RoundedRectangleBorder(
+//                 borderRadius: BorderRadius.circular(12),
+//               ),
+//             ),
+//             child: const Text('Save'),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   void _reorderPoints(int oldIndex, int newIndex) {
+//     setState(() {
+//       if (newIndex > oldIndex) {
+//         newIndex -= 1;
+//       }
+//       final item = _routePoints.removeAt(oldIndex);
+//       _routePoints.insert(newIndex, item);
+//     });
+//   }
+
+//   void _startTrip() {
+//     if (_routePoints.isEmpty) {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: const Text('Please add at least one location'),
+//           backgroundColor: Colors.orange,
+//           behavior: SnackBarBehavior.floating,
+//           shape:
+//               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+//         ),
+//       );
+//       return;
+//     }
+
+//     final trip = Trip(
+//       id: DateTime.now().millisecondsSinceEpoch.toString(),
+//       name: _tripNameController.text,
+//       routePoints: _routePoints,
+//       startTime: DateTime.now(),
+//       isActive: true,
+//     );
+
+//     Navigator.push(
+//       context,
+//       MaterialPageRoute(
+//         builder: (context) => ActiveTripPage(trip: trip),
+//       ),
+//     ).then((result) {
+//       if (result != null && result is Trip) {
+//         setState(() {
+//           _savedTrips.add(result);
+//           _routePoints.clear();
+//         });
+//       }
+//     });
+//   }
+
+//   void _saveTrip() {
+//     if (_routePoints.isEmpty) {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         SnackBar(
+//           content: const Text('Please add at least one location'),
+//           backgroundColor: Colors.orange,
+//           behavior: SnackBarBehavior.floating,
+//           shape:
+//               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+//         ),
+//       );
+//       return;
+//     }
+
+//     final trip = Trip(
+//       id: DateTime.now().millisecondsSinceEpoch.toString(),
+//       name: _tripNameController.text,
+//       routePoints: _routePoints,
+//     );
+
+//     setState(() {
+//       _savedTrips.add(trip);
+//       _routePoints.clear();
+//     });
+
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(
+//         content: const Text('Trip saved successfully'),
+//         backgroundColor: Colors.teal,
+//         behavior: SnackBarBehavior.floating,
+//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+//       ),
+//     );
+//   }
+
+//   void _clearRoute() {
+//     showDialog(
+//       context: context,
+//       builder: (context) => AlertDialog(
+//         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+//         title: const Text('Clear Route'),
+//         content: const Text('Are you sure you want to clear all points?'),
+//         actions: [
+//           TextButton(
+//             onPressed: () => Navigator.pop(context),
+//             child: const Text('Cancel'),
+//           ),
+//           ElevatedButton(
+//             onPressed: () {
+//               setState(() {
+//                 _routePoints.clear();
+//               });
+//               Navigator.pop(context);
+//             },
+//             style: ElevatedButton.styleFrom(
+//               backgroundColor: Colors.red,
+//               shape: RoundedRectangleBorder(
+//                 borderRadius: BorderRadius.circular(12),
+//               ),
+//             ),
+//             child: const Text('Clear'),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+
+//   List<LatLng> _generateRoutePoints() {
+//     if (_routePoints.isEmpty) return [];
+//     return _routePoints.map((p) => p.coordinates).toList();
+//   }
+
+//   double _calculateTotalDistance() {
+//     if (_routePoints.length < 2) return 0.0;
+
+//     double total = 0.0;
+//     const distance = Distance();
+
+//     for (int i = 0; i < _routePoints.length - 1; i++) {
+//       total += distance.as(
+//         LengthUnit.Kilometer,
+//         _routePoints[i].coordinates,
+//         _routePoints[i + 1].coordinates,
+//       );
+//     }
+//     return total;
+//   }
+
+//   void _zoomIn() {
+//     setState(() {
+//       _currentZoom = (_currentZoom + 1).clamp(2.0, 18.0);
+//       _mapController.move(_mapController.camera.center, _currentZoom);
+//     });
+//   }
+
+//   void _zoomOut() {
+//     setState(() {
+//       _currentZoom = (_currentZoom - 1).clamp(2.0, 18.0);
+//       _mapController.move(_mapController.camera.center, _currentZoom);
+//     });
+//   }
+
+//   void _centerToUserLocation() {
+//     if (_currentCenter != null) {
+//       _mapController.move(_currentCenter!, 14.0);
+//     }
+//   }
+
+//   void _toggleMapType() {
+//     setState(() {
+//       _selectedMapType =
+//           _selectedMapType == 'standard' ? 'satellite' : 'standard';
+//     });
+//   }
+
+//   @override
+//   Widget build(BuildContext context) {
+//     final totalDistance = _calculateTotalDistance();
+
+//     return Scaffold(
+//       backgroundColor: Colors.white,
+//       appBar: AppBar(
+//         backgroundColor: Colors.white,
+//         elevation: 1,
+//         centerTitle: true,
+//         leading: IconButton(
+//           icon: const Icon(Icons.arrow_back, color: Colors.black),
+//           onPressed: () => Navigator.pop(context),
+//         ),
+//         title: const Text(
+//           'Roady',
+//           style: TextStyle(
+//             color: Colors.black,
+//             fontSize: 24,
+//             fontWeight: FontWeight.bold,
+//           ),
+//         ),
+//         actions: [
+//           if (_routePoints.isNotEmpty)
+//             IconButton(
+//               icon: const Icon(Icons.save_outlined, color: Colors.teal),
+//               onPressed: _saveTrip,
+//               tooltip: 'Save Trip',
+//             ),
+//           PopupMenuButton(
+//             icon: const Icon(Icons.more_vert, color: Colors.black),
+//             shape: RoundedRectangleBorder(
+//               borderRadius: BorderRadius.circular(12),
+//             ),
+//             itemBuilder: (context) => [
+//               const PopupMenuItem(
+//                 value: 'saved_trips',
+//                 child: Row(
+//                   children: [
+//                     Icon(Icons.folder_outlined, color: Colors.black87),
+//                     SizedBox(width: 12),
+//                     Text('Saved Trips'),
+//                   ],
+//                 ),
+//               ),
+//               if (_routePoints.isNotEmpty)
+//                 const PopupMenuItem(
+//                   value: 'clear',
+//                   child: Row(
+//                     children: [
+//                       Icon(Icons.clear_all, color: Colors.red),
+//                       SizedBox(width: 12),
+//                       Text('Clear Route', style: TextStyle(color: Colors.red)),
+//                     ],
+//                   ),
+//                 ),
+//             ],
+//             onSelected: (value) {
+//               if (value == 'clear') {
+//                 _clearRoute();
+//               } else if (value == 'saved_trips') {
+//                 _showSavedTrips();
+//               }
+//             },
+//           ),
+//         ],
+//       ),
+//       body: SingleChildScrollView(
+//         child: Column(
+//           crossAxisAlignment: CrossAxisAlignment.start,
+//           children: [
+//             // Trip Name Input
+//             Padding(
+//               padding: const EdgeInsets.all(16.0),
+//               child: TextField(
+//                 controller: _tripNameController,
+//                 decoration: InputDecoration(
+//                   labelText: 'Trip Name',
+//                   prefixIcon: const Icon(Icons.edit, color: Colors.teal),
+//                   filled: true,
+//                   fillColor: Colors.grey[50],
+//                   border: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(12),
+//                     borderSide: BorderSide(color: Colors.grey[300]!),
+//                   ),
+//                   enabledBorder: OutlineInputBorder(
+//                     borderRadius: BorderRadius.circular(12),
+//                     borderSide: BorderSide(color: Colors.grey[300]!),
+//                   ),
+//                 ),
+//               ),
+//             ),
+
+//             // Add Location Button
+//             Padding(
+//               padding: const EdgeInsets.symmetric(horizontal: 16.0),
+//               child: ElevatedButton.icon(
+//                 onPressed: () => _pickLocation('Location'),
+//                 icon: const Icon(Icons.add_location_alt),
+//                 label: const Text('Add Location to Route'),
+//                 style: ElevatedButton.styleFrom(
+//                   backgroundColor: Colors.teal,
+//                   minimumSize: const Size(double.infinity, 52),
+//                   shape: RoundedRectangleBorder(
+//                     borderRadius: BorderRadius.circular(12),
+//                   ),
+//                 ),
+//               ),
+//             ),
+
+//             const SizedBox(height: 16),
+
+//             // Route Points List
+//             if (_routePoints.isNotEmpty) ...[
+//               Padding(
+//                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
+//                 child: Row(
+//                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+//                   children: [
+//                     const Text(
+//                       'Route Points',
+//                       style: TextStyle(
+//                         fontSize: 18,
+//                         fontWeight: FontWeight.bold,
+//                       ),
+//                     ),
+//                     Text(
+//                       '${_routePoints.length} stops',
+//                       style: TextStyle(
+//                         fontSize: 14,
+//                         color: Colors.grey[600],
+//                         fontWeight: FontWeight.w500,
+//                       ),
+//                     ),
+//                   ],
+//                 ),
+//               ),
+//               const SizedBox(height: 12),
+//               Container(
+//                 margin: const EdgeInsets.symmetric(horizontal: 16),
+//                 decoration: BoxDecoration(
+//                   color: Colors.grey[50],
+//                   borderRadius: BorderRadius.circular(12),
+//                   border: Border.all(color: Colors.grey[300]!),
+//                 ),
+//                 child: ReorderableListView.builder(
+//                   shrinkWrap: true,
+//                   physics: const NeverScrollableScrollPhysics(),
+//                   itemCount: _routePoints.length,
+//                   onReorder: _reorderPoints,
+//                   buildDefaultDragHandles: false,
+//                   itemBuilder: (context, index) {
+//                     final point = _routePoints[index];
+//                     return Container(
+//                       key: ValueKey(point.id),
+//                       margin: const EdgeInsets.symmetric(
+//                         horizontal: 8,
+//                         vertical: 4,
+//                       ),
+//                       decoration: BoxDecoration(
+//                         color: Colors.white,
+//                         borderRadius: BorderRadius.circular(12),
+//                       ),
+//                       child: ListTile(
+//                         leading: ReorderableDragStartListener(
+//                           index: index,
+//                           child: Container(
+//                             width: 40,
+//                             height: 40,
+//                             decoration: BoxDecoration(
+//                               color: Colors.teal.withOpacity(0.1),
+//                               borderRadius: BorderRadius.circular(10),
+//                             ),
+//                             child: Center(
+//                               child: Text(
+//                                 '${index + 1}',
+//                                 style: const TextStyle(
+//                                   color: Colors.teal,
+//                                   fontWeight: FontWeight.bold,
+//                                   fontSize: 16,
+//                                 ),
+//                               ),
+//                             ),
+//                           ),
+//                         ),
+//                         title: Text(
+//                           point.name,
+//                           style: const TextStyle(
+//                             fontWeight: FontWeight.w600,
+//                           ),
+//                         ),
+//                         subtitle: point.notes != null
+//                             ? Text(
+//                                 point.notes!,
+//                                 style: TextStyle(
+//                                   fontSize: 12,
+//                                   color: Colors.grey[600],
+//                                 ),
+//                               )
+//                             : null,
+//                         trailing: Row(
+//                           mainAxisSize: MainAxisSize.min,
+//                           children: [
+//                             IconButton(
+//                               icon: const Icon(Icons.edit, size: 20),
+//                               onPressed: () => _editPoint(index),
+//                               color: Colors.grey[600],
+//                             ),
+//                             IconButton(
+//                               icon: const Icon(Icons.close, size: 20),
+//                               onPressed: () => _removePoint(index),
+//                               color: Colors.red[400],
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+//                     );
+//                   },
+//                 ),
+//               ),
+//               const SizedBox(height: 16),
+//             ],
+
+//             // Map Section
+//             Container(
+//               height: 320,
+//               margin: const EdgeInsets.symmetric(horizontal: 16),
+//               decoration: BoxDecoration(
+//                 borderRadius: BorderRadius.circular(16),
+//                 boxShadow: [
+//                   BoxShadow(
+//                     color: Colors.black.withOpacity(0.1),
+//                     blurRadius: 10,
+//                     offset: const Offset(0, 4),
+//                   ),
+//                 ],
+//               ),
+//               child: ClipRRect(
+//                 borderRadius: BorderRadius.circular(16),
+//                 child: Stack(
+//                   children: [
+//                     _isMapLoading
+//                         ? const Center(child: CircularProgressIndicator())
+//                         : _currentCenter == null
+//                             ? Container(
+//                                 color: Colors.grey[200],
+//                                 child: const Center(
+//                                   child: Text('Unable to load map'),
+//                                 ),
+//                               )
+//                             : FlutterMap(
+//                                 mapController: _mapController,
+//                                 options: MapOptions(
+//                                   keepAlive: true,
+//                                   initialCenter: _currentCenter!,
+//                                   minZoom: 2.0,
+//                                   maxZoom: 18.0,
+//                                   initialZoom: _currentZoom,
+//                                 ),
+//                                 children: [
+//                                   TileLayer(
+//                                     urlTemplate: _selectedMapType == 'standard'
+//                                         ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+//                                         : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+//                                     userAgentPackageName: AppConstants.appId,
+//                                   ),
+
+//                                   // Route Line
+//                                   if (_routePoints.length >= 2)
+//                                     PolylineLayer(
+//                                       polylines: [
+//                                         Polyline(
+//                                           points: _generateRoutePoints(),
+//                                           strokeWidth: 8,
+//                                           color: Colors.black.withOpacity(0.2),
+//                                         ),
+//                                         Polyline(
+//                                           points: _generateRoutePoints(),
+//                                           strokeWidth: 5,
+//                                           color: Colors.teal,
+//                                           borderStrokeWidth: 2,
+//                                           borderColor: Colors.white,
+//                                         ),
+//                                       ],
+//                                     ),
+
+//                                   // Markers
+//                                   MarkerLayer(
+//                                     markers: _routePoints
+//                                         .asMap()
+//                                         .entries
+//                                         .map((entry) {
+//                                       final index = entry.key;
+//                                       final point = entry.value;
+//                                       final isFirst = index == 0;
+//                                       final isLast =
+//                                           index == _routePoints.length - 1;
+
+//                                       return Marker(
+//                                         point: point.coordinates,
+//                                         width: 50,
+//                                         height: 70,
+//                                         child: Column(
+//                                           children: [
+//                                             Container(
+//                                               padding: const EdgeInsets.all(8),
+//                                               decoration: BoxDecoration(
+//                                                 color: isFirst
+//                                                     ? Colors.teal
+//                                                     : isLast
+//                                                         ? Colors.red
+//                                                         : Colors.orange,
+//                                                 shape: BoxShape.circle,
+//                                                 border: Border.all(
+//                                                   color: Colors.white,
+//                                                   width: 3,
+//                                                 ),
+//                                                 boxShadow: [
+//                                                   BoxShadow(
+//                                                     color: Colors.black
+//                                                         .withOpacity(0.3),
+//                                                     blurRadius: 8,
+//                                                     offset: const Offset(0, 3),
+//                                                   ),
+//                                                 ],
+//                                               ),
+//                                               child: Text(
+//                                                 '${index + 1}',
+//                                                 style: const TextStyle(
+//                                                   color: Colors.white,
+//                                                   fontWeight: FontWeight.bold,
+//                                                   fontSize: 16,
+//                                                 ),
+//                                               ),
+//                                             ),
+//                                           ],
+//                                         ),
+//                                       );
+//                                     }).toList(),
+//                                   ),
+//                                 ],
+//                               ),
+
+//                     // Map Controls
+//                     if (!_isMapLoading && _currentCenter != null)
+//                       Positioned(
+//                         top: 12,
+//                         right: 12,
+//                         child: Column(
+//                           children: [
+//                             _buildMapControl(
+//                               icon: Icons.layers,
+//                               onTap: _toggleMapType,
+//                               tooltip: 'Map Type',
+//                             ),
+//                             const SizedBox(height: 8),
+//                             _buildMapControl(
+//                               icon: Icons.add,
+//                               onTap: _zoomIn,
+//                               tooltip: 'Zoom In',
+//                             ),
+//                             const SizedBox(height: 8),
+//                             _buildMapControl(
+//                               icon: Icons.remove,
+//                               onTap: _zoomOut,
+//                               tooltip: 'Zoom Out',
+//                             ),
+//                           ],
+//                         ),
+//                       ),
+
+//                     // Distance Info
+//                     if (_routePoints.length >= 2)
+//                       Positioned(
+//                         bottom: 12,
+//                         left: 12,
+//                         child: Container(
+//                           padding: const EdgeInsets.symmetric(
+//                             horizontal: 12,
+//                             vertical: 8,
+//                           ),
+//                           decoration: BoxDecoration(
+//                             color: Colors.white,
+//                             borderRadius: BorderRadius.circular(20),
+//                             boxShadow: [
+//                               BoxShadow(
+//                                 color: Colors.black.withOpacity(0.15),
+//                                 blurRadius: 8,
+//                                 offset: const Offset(0, 2),
+//                               ),
+//                             ],
+//                           ),
+//                           child: Row(
+//                             mainAxisSize: MainAxisSize.min,
+//                             children: [
+//                               const Icon(Icons.route,
+//                                   size: 18, color: Colors.teal),
+//                               const SizedBox(width: 6),
+//                               Text(
+//                                 '${totalDistance.toStringAsFixed(1)} km',
+//                                 style: const TextStyle(
+//                                   fontSize: 13,
+//                                   fontWeight: FontWeight.w600,
+//                                   color: Colors.black87,
+//                                 ),
+//                               ),
+//                             ],
+//                           ),
+//                         ),
+//                       ),
+//                   ],
+//                 ),
+//               ),
+//             ),
+
+//             const SizedBox(height: 20),
+
+//             // Category Filters
+//             Padding(
+//               padding: const EdgeInsets.symmetric(horizontal: 16),
+//               child: Column(
+//                 crossAxisAlignment: CrossAxisAlignment.start,
+//                 children: [
+//                   const Text(
+//                     'Category',
+//                     style: TextStyle(
+//                       fontSize: 16,
+//                       fontWeight: FontWeight.bold,
+//                       color: Colors.black87,
+//                     ),
+//                   ),
+//                   const SizedBox(height: 12),
+//                   SizedBox(
+//                     height: 50,
+//                     child: ListView.builder(
+//                       scrollDirection: Axis.horizontal,
+//                       itemCount: _categories.length,
+//                       itemBuilder: (context, index) {
+//                         final category = _categories[index];
+//                         final isSelected =
+//                             _selectedCategory == category['label'];
+
+//                         return Padding(
+//                           padding: const EdgeInsets.only(right: 8),
+//                           child: FilterChip(
+//                             selected: isSelected,
+//                             label: Row(
+//                               mainAxisSize: MainAxisSize.min,
+//                               children: [
+//                                 Icon(
+//                                   category['icon'],
+//                                   size: 18,
+//                                   color: isSelected
+//                                       ? Colors.white
+//                                       : Colors.grey[700],
+//                                 ),
+//                                 const SizedBox(width: 6),
+//                                 Text(category['label']),
+//                               ],
+//                             ),
+//                             onSelected: (selected) {
+//                               setState(() {
+//                                 _selectedCategory = category['label'];
+//                               });
+//                             },
+//                             backgroundColor: Colors.white,
+//                             selectedColor: Colors.teal,
+//                             labelStyle: TextStyle(
+//                               color:
+//                                   isSelected ? Colors.white : Colors.grey[700],
+//                               fontWeight: FontWeight.w500,
+//                             ),
+//                             side: BorderSide(
+//                               color:
+//                                   isSelected ? Colors.teal : Colors.grey[300]!,
+//                               width: 1.5,
+//                             ),
+//                             elevation: isSelected ? 2 : 0,
+//                             shadowColor: Colors.teal.withOpacity(0.3),
+//                           ),
+//                         );
+//                       },
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+
+//             const SizedBox(height: 24),
+
+//             // Start Trip Button
+//             if (_routePoints.isNotEmpty)
+//               Padding(
+//                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
+//                 child: ElevatedButton(
+//                   onPressed: _startTrip,
+//                   style: ElevatedButton.styleFrom(
+//                     backgroundColor: Colors.green,
+//                     minimumSize: const Size(double.infinity, 56),
+//                     shape: RoundedRectangleBorder(
+//                       borderRadius: BorderRadius.circular(12),
+//                     ),
+//                   ),
+//                   child: const Row(
+//                     mainAxisAlignment: MainAxisAlignment.center,
+//                     children: [
+//                       Icon(Icons.play_arrow, size: 28),
+//                       SizedBox(width: 8),
+//                       Text(
+//                         'Start Trip',
+//                         style: TextStyle(
+//                           fontSize: 18,
+//                           fontWeight: FontWeight.bold,
+//                         ),
+//                       ),
+//                     ],
+//                   ),
+//                 ),
+//               ),
+
+//             const SizedBox(height: 40),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   void _showSavedTrips() {
+//     showModalBottomSheet(
+//       context: context,
+//       isScrollControlled: true,
+//       shape: const RoundedRectangleBorder(
+//         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+//       ),
+//       builder: (context) => DraggableScrollableSheet(
+//         initialChildSize: 0.7,
+//         minChildSize: 0.5,
+//         maxChildSize: 0.9,
+//         expand: false,
+//         builder: (context, scrollController) => Column(
+//           children: [
+//             Container(
+//               padding: const EdgeInsets.all(16),
+//               decoration: BoxDecoration(
+//                 color: Colors.white,
+//                 borderRadius: const BorderRadius.vertical(
+//                   top: Radius.circular(20),
+//                 ),
+//               ),
+//               child: Column(
+//                 children: [
+//                   Container(
+//                     width: 40,
+//                     height: 4,
+//                     decoration: BoxDecoration(
+//                       color: Colors.grey[300],
+//                       borderRadius: BorderRadius.circular(2),
+//                     ),
+//                   ),
+//                   const SizedBox(height: 16),
+//                   const Text(
+//                     'Saved Trips',
+//                     style: TextStyle(
+//                       fontSize: 20,
+//                       fontWeight: FontWeight.bold,
+//                     ),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//             Expanded(
+//               child: _savedTrips.isEmpty
+//                   ? Center(
+//                       child: Column(
+//                         mainAxisAlignment: MainAxisAlignment.center,
+//                         children: [
+//                           Icon(Icons.folder_open,
+//                               size: 64, color: Colors.grey[400]),
+//                           const SizedBox(height: 16),
+//                           Text(
+//                             'No saved trips yet',
+//                             style: TextStyle(
+//                               fontSize: 16,
+//                               color: Colors.grey[600],
+//                             ),
+//                           ),
+//                         ],
+//                       ),
+//                     )
+//                   : ListView.builder(
+//                       controller: scrollController,
+//                       padding: const EdgeInsets.all(16),
+//                       itemCount: _savedTrips.length,
+//                       itemBuilder: (context, index) {
+//                         final trip = _savedTrips[index];
+//                         return Card(
+//                           margin: const EdgeInsets.only(bottom: 12),
+//                           shape: RoundedRectangleBorder(
+//                             borderRadius: BorderRadius.circular(12),
+//                           ),
+//                           child: ListTile(
+//                             contentPadding: const EdgeInsets.all(16),
+//                             leading: Container(
+//                               width: 50,
+//                               height: 50,
+//                               decoration: BoxDecoration(
+//                                 color: Colors.teal.withOpacity(0.1),
+//                                 borderRadius: BorderRadius.circular(12),
+//                               ),
+//                               child: const Icon(
+//                                 Icons.route,
+//                                 color: Colors.teal,
+//                               ),
+//                             ),
+//                             title: Text(
+//                               trip.name,
+//                               style: const TextStyle(
+//                                 fontWeight: FontWeight.w600,
+//                               ),
+//                             ),
+//                             subtitle: Text(
+//                               '${trip.routePoints.length} stops • ${trip.totalDistance.toStringAsFixed(1)} km',
+//                               style: TextStyle(
+//                                 color: Colors.grey[600],
+//                               ),
+//                             ),
+//                             trailing: const Icon(Icons.chevron_right),
+//                             onTap: () {
+//                               // Load saved trip
+//                               setState(() {
+//                                 _routePoints = List.from(trip.routePoints);
+//                                 _tripNameController.text = trip.name;
+//                               });
+//                               Navigator.pop(context);
+//                             },
+//                           ),
+//                         );
+//                       },
+//                     ),
+//             ),
+//           ],
+//         ),
+//       ),
+//     );
+//   }
+
+//   Widget _buildMapControl({
+//     required IconData icon,
+//     required VoidCallback onTap,
+//     required String tooltip,
+//     Color backgroundColor = Colors.white,
+//     Color iconColor = Colors.black87,
+//   }) {
+//     return Tooltip(
+//       message: tooltip,
+//       child: Material(
+//         color: backgroundColor,
+//         borderRadius: BorderRadius.circular(8),
+//         elevation: 4,
+//         shadowColor: Colors.black.withOpacity(0.2),
+//         child: InkWell(
+//           onTap: onTap,
+//           borderRadius: BorderRadius.circular(8),
+//           child: Container(
+//             width: 42,
+//             height: 42,
+//             decoration: BoxDecoration(
+//               borderRadius: BorderRadius.circular(8),
+//             ),
+//             child: Icon(icon, size: 22, color: iconColor),
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
+
+import 'package:fdelux_source_neytrip/common/app_colors.dart';
+import 'package:fdelux_source_neytrip/common/app_constants.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+
+class TripPlanningPage extends StatefulWidget {
+  const TripPlanningPage({super.key});
+
+  @override
+  State<TripPlanningPage> createState() => _TripPlanningPageState();
+}
+
+class _TripPlanningPageState extends State<TripPlanningPage> {
+  final MapController _mapController = MapController();
+  final TextEditingController _startPointController = TextEditingController();
+  final TextEditingController _destinationController = TextEditingController();
+
+  // State variables
+  String _selectedCategory = 'Coffee';
+  List<String> _stops = [];
+  bool _isMapLoading = true;
+  LatLng? _currentCenter;
+  double _currentZoom = 12.0;
+
+  // Map layer types
+  String _selectedMapType = 'standard';
+  bool _showTraffic = false;
+
+  final List<Map<String, dynamic>> _categories = [
+    {'icon': Icons.coffee, 'label': 'Coffee'},
+    {'icon': Icons.restaurant, 'label': 'Lunch'},
+    {'icon': Icons.content_cut, 'label': 'Hair'},
+    {'icon': Icons.spa, 'label': 'Nails'},
+    {'icon': Icons.shopping_bag, 'label': 'Shopping'},
+  ];
+
+  final List<String> _favorites = [
+    'Arabica Café',
+    'Matcha Lab DXB',
+    'SALT Kite Beach',
+  ];
+
+  // Sample destinations with detailed route
+  final List<Map<String, dynamic>> _destinations = [
+    {
+      'name': 'Matcha Lab DXB',
+      'icon': Icons.coffee,
+      'category': 'Coffee',
+      'offset': [0.01, 0.01],
+    },
+    {
+      'name': 'Arabica Café',
+      'icon': Icons.local_cafe,
+      'category': 'Coffee',
+      'offset': [-0.008, 0.012],
+    },
+    {
+      'name': 'The Restaurant',
+      'icon': Icons.restaurant,
+      'category': 'Lunch',
+      'offset': [0.015, -0.005],
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeMap();
+  }
+
+  void _initializeMap() async {
+    // Simulate getting user location
+    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() {
+      // Default to Dubai coordinates
+      _currentCenter = LatLng(25.2048, 55.2708);
+      _isMapLoading = false;
+    });
+
+    // Move map to center after initialization
+    if (_currentCenter != null) {
+      _mapController.move(_currentCenter!, _currentZoom);
+    }
+  }
+
+  @override
+  void dispose() {
+    _startPointController.dispose();
+    _destinationController.dispose();
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  void _onTapMarker(LatLng point, String placeName) {
+    setState(() {
+      _mapController.move(point, 15.0);
+    });
+
+    // Show place details
+    _showPlaceDetails(placeName);
+  }
+
+  void _showPlaceDetails(String placeName) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.location_on, color: Colors.teal, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    placeName,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
+                minimumSize: const Size(double.infinity, 48),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: const Text('Add to Route'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _addStop() {
+    setState(() {
+      _stops.add('Stop ${_stops.length + 1}');
+    });
+  }
+
+  void _removeStop(int index) {
+    setState(() {
+      _stops.removeAt(index);
+    });
+  }
+
+  void _onCategorySelected(String category) {
+    setState(() {
+      _selectedCategory = category;
+    });
+  }
+
+  void _zoomIn() {
+    setState(() {
+      _currentZoom = (_currentZoom + 1).clamp(2.0, 18.0);
+      _mapController.move(_mapController.camera.center, _currentZoom);
+    });
+  }
+
+  void _zoomOut() {
+    setState(() {
+      _currentZoom = (_currentZoom - 1).clamp(2.0, 18.0);
+      _mapController.move(_mapController.camera.center, _currentZoom);
+    });
+  }
+
+  void _centerToUserLocation() {
+    if (_currentCenter != null) {
+      setState(() {
+        _mapController.move(_currentCenter!, 14.0);
+      });
+    }
+  }
+
+  void _toggleMapType() {
+    setState(() {
+      _selectedMapType =
+          _selectedMapType == 'standard' ? 'satellite' : 'standard';
+    });
+  }
+
+  // Generate smooth route points
+  List<LatLng> _generateRoutePoints() {
+    if (_currentCenter == null) return [];
+
+    List<LatLng> points = [_currentCenter!];
+
+    // Add intermediate points for smooth curves
+    points.add(LatLng(
+        _currentCenter!.latitude + 0.003, _currentCenter!.longitude + 0.002));
+    points.add(LatLng(
+        _currentCenter!.latitude + 0.006, _currentCenter!.longitude + 0.004));
+    points.add(LatLng(
+        _currentCenter!.latitude + 0.008, _currentCenter!.longitude + 0.007));
+    points.add(LatLng(
+        _currentCenter!.latitude + 0.01, _currentCenter!.longitude + 0.01));
+
+    return points;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Roady',
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onPressed: () {
+              // Show options menu
+            },
+          ),
+        ],
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Input Fields Section
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  // Start Point Field
+                  _buildInputField(
+                    controller: _startPointController,
+                    hint: 'Start point',
+                    icon: Icons.circle,
+                    iconColor: Colors.teal,
+                    onTap: () {
+                      // Open location picker
+                    },
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Destination Field
+                  _buildInputField(
+                    controller: _destinationController,
+                    hint: 'Destination',
+                    icon: Icons.location_on,
+                    iconColor: Colors.red,
+                    onTap: () {
+                      // Open location picker
+                    },
+                  ),
+
+                  // Additional Stops
+                  ..._stops.asMap().entries.map((entry) {
+                    return Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: _buildStopField(entry.key, entry.value),
+                    );
+                  }).toList(),
+
+                  const SizedBox(height: 12),
+
+                  // Add Stop Button
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: _addStop,
+                      icon: const Icon(Icons.add_circle_outline,
+                          color: Colors.teal, size: 20),
+                      label: const Text(
+                        'Add stop',
+                        style: TextStyle(
+                          color: Colors.teal,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // Enhanced Map Section with Controls
+            Container(
+              height: 320,
+              margin: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.1),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                  children: [
+                    // Map Widget
+                    _isMapLoading
+                        ? const Center(child: CircularProgressIndicator())
+                        : _currentCenter == null
+                            ? Container(
+                                color: Colors.grey[200],
+                                child: const Center(
+                                  child: Text('Unable to load map'),
+                                ),
+                              )
+                            : FlutterMap(
+                                mapController: _mapController,
+                                options: MapOptions(
+                                  keepAlive: true,
+                                  initialCenter: _currentCenter!,
+                                  minZoom: 2.0,
+                                  maxZoom: 18.0,
+                                  initialZoom: _currentZoom,
+                                  interactionOptions: const InteractionOptions(
+                                    flags: InteractiveFlag.all &
+                                        ~InteractiveFlag.rotate,
+                                  ),
+                                ),
+                                children: [
+                                  // Tile Layer
+                                  TileLayer(
+                                    urlTemplate: _selectedMapType == 'standard'
+                                        ? 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+                                        : 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+                                    userAgentPackageName: AppConstants.appId,
+                                  ),
+
+                                  // Enhanced Route Line with shadow effect
+                                  PolylineLayer(
+                                    polylines: [
+                                      // Shadow line
+                                      Polyline(
+                                        points: _generateRoutePoints(),
+                                        strokeWidth: 8,
+                                        color: Colors.black.withOpacity(0.2),
+                                      ),
+                                      // Main route line
+                                      Polyline(
+                                        points: _generateRoutePoints(),
+                                        strokeWidth: 5,
+                                        color: Colors.teal,
+                                        borderStrokeWidth: 2,
+                                        borderColor: Colors.white,
+                                      ),
+                                      // Animated dashed line overlay
+                                      Polyline(
+                                        points: _generateRoutePoints(),
+                                        strokeWidth: 5,
+                                        color: Colors.white.withOpacity(0.4),
+                                        // isDotted: true,
+                                      ),
+                                    ],
+                                  ),
+
+                                  // Markers Layer
+                                  MarkerLayer(
+                                    markers: [
+                                      // User Location Marker (Start Point)
+                                      Marker(
+                                        point: _currentCenter!,
+                                        width: 50,
+                                        height: 50,
+                                        child: GestureDetector(
+                                          onTap: () => _onTapMarker(
+                                              _currentCenter!, 'Your Location'),
+                                          child: Stack(
+                                            alignment: Alignment.center,
+                                            children: [
+                                              // Pulse effect
+                                              Container(
+                                                width: 50,
+                                                height: 50,
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: Colors.teal
+                                                      .withOpacity(0.2),
+                                                ),
+                                              ),
+                                              // Main marker
+                                              Container(
+                                                width: 40,
+                                                height: 40,
+                                                decoration: BoxDecoration(
+                                                  color: Colors.teal,
+                                                  shape: BoxShape.circle,
+                                                  border: Border.all(
+                                                      color: Colors.white,
+                                                      width: 3),
+                                                  boxShadow: [
+                                                    BoxShadow(
+                                                      color: Colors.black
+                                                          .withOpacity(0.3),
+                                                      blurRadius: 8,
+                                                      offset:
+                                                          const Offset(0, 2),
+                                                    ),
+                                                  ],
+                                                ),
+                                                child: const Center(
+                                                  child: Text(
+                                                    'A',
+                                                    style: TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                      fontSize: 18,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+
+                                      // Destination Markers
+                                      ..._destinations
+                                          .where((d) =>
+                                              _selectedCategory == 'Coffee' ||
+                                              d['category'] ==
+                                                  _selectedCategory)
+                                          .map((destination) {
+                                        final point = LatLng(
+                                          _currentCenter!.latitude +
+                                              destination['offset'][0],
+                                          _currentCenter!.longitude +
+                                              destination['offset'][1],
+                                        );
+                                        return Marker(
+                                          point: point,
+                                          width: 120,
+                                          height: 90,
+                                          child: GestureDetector(
+                                            onTap: () => _onTapMarker(
+                                                point, destination['name']),
+                                            child: Column(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                // Marker icon with shadow
+                                                Container(
+                                                  padding:
+                                                      const EdgeInsets.all(10),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.red,
+                                                    shape: BoxShape.circle,
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withOpacity(0.3),
+                                                        blurRadius: 8,
+                                                        offset:
+                                                            const Offset(0, 3),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Icon(
+                                                    destination['icon'],
+                                                    color: Colors.white,
+                                                    size: 22,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 6),
+                                                // Place name label
+                                                Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                    horizontal: 10,
+                                                    vertical: 5,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.white,
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            6),
+                                                    boxShadow: [
+                                                      BoxShadow(
+                                                        color: Colors.black
+                                                            .withOpacity(0.15),
+                                                        blurRadius: 6,
+                                                        offset:
+                                                            const Offset(0, 2),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                  child: Text(
+                                                    destination['name'],
+                                                    style: const TextStyle(
+                                                      fontSize: 11,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                      color: Colors.black87,
+                                                    ),
+                                                    textAlign: TextAlign.center,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ],
+                                  ),
+                                ],
+                              ),
+
+                    // Map Controls Overlay
+                    if (!_isMapLoading && _currentCenter != null)
+                      Positioned(
+                        top: 12,
+                        right: 12,
+                        child: Column(
+                          children: [
+                            // Map Type Toggle
+                            _buildMapControl(
+                              icon: Icons.layers,
+                              onTap: _toggleMapType,
+                              tooltip: 'Map Type',
+                            ),
+                            const SizedBox(height: 8),
+                            // Zoom In
+                            _buildMapControl(
+                              icon: Icons.add,
+                              onTap: _zoomIn,
+                              tooltip: 'Zoom In',
+                            ),
+                            const SizedBox(height: 8),
+                            // Zoom Out
+                            _buildMapControl(
+                              icon: Icons.remove,
+                              onTap: _zoomOut,
+                              tooltip: 'Zoom Out',
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // Center to User Location Button
+                    if (!_isMapLoading && _currentCenter != null)
+                      Positioned(
+                        bottom: 12,
+                        right: 12,
+                        child: _buildMapControl(
+                          icon: Icons.my_location,
+                          onTap: _centerToUserLocation,
+                          tooltip: 'My Location',
+                          backgroundColor: Colors.teal,
+                          iconColor: Colors.white,
+                        ),
+                      ),
+
+                    // Distance and Time Info
+                    if (!_isMapLoading && _currentCenter != null)
+                      Positioned(
+                        bottom: 12,
+                        left: 12,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.directions_car,
+                                  size: 18, color: Colors.teal),
+                              const SizedBox(width: 6),
+                              const Text(
+                                '2.5 km • 8 min',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Category Filters
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Filter by category',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    height: 50,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: _categories.length,
+                      itemBuilder: (context, index) {
+                        final category = _categories[index];
+                        final isSelected =
+                            _selectedCategory == category['label'];
+
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            selected: isSelected,
+                            label: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  category['icon'],
+                                  size: 18,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.grey[700],
+                                ),
+                                const SizedBox(width: 6),
+                                Text(category['label']),
+                              ],
+                            ),
+                            onSelected: (selected) =>
+                                _onCategorySelected(category['label']),
+                            backgroundColor: Colors.white,
+                            selectedColor: Colors.teal,
+                            labelStyle: TextStyle(
+                              color:
+                                  isSelected ? Colors.white : Colors.grey[700],
+                              fontWeight: FontWeight.w500,
+                            ),
+                            side: BorderSide(
+                              color:
+                                  isSelected ? Colors.teal : Colors.grey[300]!,
+                              width: 1.5,
+                            ),
+                            elevation: isSelected ? 2 : 0,
+                            shadowColor: Colors.teal.withOpacity(0.3),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // Your Favorites Section
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Row(
+                    children: [
+                      Text(
+                        'Your Favorites ',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text('💛', style: TextStyle(fontSize: 20)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _favorites.map((favorite) {
+                      return InkWell(
+                        onTap: () {
+                          // Navigate to favorite location
+                        },
+                        child: Chip(
+                          avatar: const Icon(Icons.star,
+                              size: 16, color: Colors.amber),
+                          label: Text(favorite),
+                          backgroundColor: Colors.grey[100],
+                          side: BorderSide(color: Colors.grey[300]!),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+
+            // Featured Section
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.pink[50]!, Colors.pink[100]!],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.pink[200]!, width: 1),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Text('⭐', style: TextStyle(fontSize: 20)),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: RichText(
+                        text: const TextSpan(
+                          style: TextStyle(
+                            color: Colors.black87,
+                            fontSize: 14,
+                          ),
+                          children: [
+                            TextSpan(
+                              text: 'Featured: ',
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(
+                              text:
+                                  'Dolcetto Café – Try our new pistachio matcha!',
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMapControl({
+    required IconData icon,
+    required VoidCallback onTap,
+    required String tooltip,
+    Color backgroundColor = Colors.white,
+    Color iconColor = Colors.black87,
+  }) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(8),
+        elevation: 4,
+        shadowColor: Colors.black.withOpacity(0.2),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, size: 22, color: iconColor),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildInputField({
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    required Color iconColor,
+    VoidCallback? onTap,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        readOnly: onTap != null,
+        onTap: onTap,
+        decoration: InputDecoration(
+          hintText: hint,
+          hintStyle: TextStyle(color: Colors.grey[500]),
+          prefixIcon: Icon(icon, color: iconColor, size: 22),
+          suffixIcon: Icon(Icons.search, color: Colors.grey[400], size: 20),
+          border: InputBorder.none,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStopField(int index, String stopName) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        border: Border.all(color: Colors.grey[300]!),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: stopName,
+                hintStyle: TextStyle(color: Colors.grey[500]),
+                prefixIcon: const Icon(Icons.location_on,
+                    color: Colors.orange, size: 22),
+                border: InputBorder.none,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+            onPressed: () => _removeStop(index),
+          ),
+        ],
+      ),
+    );
+  }
+}
